@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Algolia Instant Search UI Extension</title>
+  <script src="https://cdn.jsdelivr.net/npm/algoliasearch@3.35.0/dist/algoliasearchLite.min.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4.0.0/dist/instantsearch.production.min.js" crossorigin="anonymous"></script>
+  <style>
+    :root {
+      font-size: 16px;
+    }
+
+    search-bar, search-results {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      padding: 0.3125rem;
+    }
+
+    search-bar .ais-SearchBox-reset {
+      display: none;
+    }
+
+    search-bar .ais-SearchBox {
+      width: 100%;
+    }
+
+    search-bar .ais-SearchBox-input {
+      width: 95%;
+    }
+
+    search-bar .ais-SearchBox-submit, search-bar .ais-SearchBox-input {
+      border: 0.0625rem solid;
+      border-radius: 0.1875rem;
+      padding: 0.625rem;
+    }
+
+    search-bar .ais-SearchBox-submit {
+      border-top-left-radius: 0;
+      border-bottom-left-radius: 0;
+    }
+
+    search-bar .ais-SearchBox-input {
+      border-right: none;
+      border-top-right-radius: 0;
+      border-bottom-right-radius: 0;
+    }
+
+    search-result {
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      width: 16.25rem;
+      padding: 0.3125rem;
+    }
+
+    search-result article-image {
+      display: block;
+      width: 100%;
+      height: 9.375rem;
+    }
+
+    search-result article-image img {
+      display: block;
+      width: 100%;
+      height: 9.375rem;
+      object-fit: cover;
+    }
+  </style>
+</head>
+<body>
+  <search-bar></search-bar>
+  <search-results></search-results>
+  <script defer>
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const searchOptions = {
+      appId: urlParams.get('appId'),
+      searchKey: urlParams.get('searchKey'),
+      indexName: urlParams.get('indexName')
+    };
+
+    const searchClient = algoliasearch(searchOptions.appId, searchOptions.searchKey);
+
+    const search = instantsearch({
+      indexName: searchOptions.indexName,
+      searchClient,
+    });
+
+    search.addWidgets([
+      instantsearch.widgets.searchBox({
+        container: 'search-bar',
+      }),
+
+      instantsearch.widgets.hits({
+        container: 'search-results',
+      })
+    ]);
+
+    search.addWidgets([
+      {
+        render(options) {
+          const results = options.results;
+          const searchQuery = results._rawResults[0].params;
+          console.log(searchQuery);
+          document.querySelector('search-results').innerHTML = results.hits
+            .map(
+              hit => `
+                <search-result>
+                  <article-image>
+                    <img src="//${hit.image.defaultHost}/i/${hit.image.endpoint}/${hit.image.name}?h=160" />
+                  </article-image>
+
+                  <h3>${hit.title}</h3>
+                  <p>${hit.description}</p>
+                </search-result>
+              `
+            )
+            .join('');
+        },
+      }
+    ]);
+
+    search.start();
+  </script>
+</body>
+</html>
