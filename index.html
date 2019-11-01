@@ -5,6 +5,7 @@
   <title>Algolia Instant Search UI Extension</title>
   <script src="https://cdn.jsdelivr.net/npm/algoliasearch@3.35.0/dist/algoliasearchLite.min.js" crossorigin="anonymous"></script>
   <script src="https://cdn.jsdelivr.net/npm/instantsearch.js@4.0.0/dist/instantsearch.production.min.js" crossorigin="anonymous"></script>
+  <script src="./src/dc-extensions-sdk.umd.js"></script>
   <style>
     :root {
       font-size: 16px;
@@ -74,39 +75,53 @@
   <search-results></search-results>
   <script defer>
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const searchOptions = {
-      appId: urlParams.get('appId'),
-      searchKey: urlParams.get('searchKey'),
-      indexName: urlParams.get('indexName')
-    };
+    (async () => {
+      const sdk = await dcExtensionsSdk.init();
+      sdk.frame.startAutoResizer();
 
-    const searchClient = algoliasearch(searchOptions.appId, searchOptions.searchKey);
+      const fieldValue = (await sdk.field.getValue()) || "";
+      const searchTerm = new URLSearchParams(fieldValue);
 
-    const search = instantsearch({
-      indexName: searchOptions.indexName,
-      searchClient,
-    });
+      const urlParams = new URLSearchParams(window.location.search);
+      const searchOptions = {
+        appId: urlParams.get('appId'),
+        searchKey: urlParams.get('searchKey'),
+        indexName: urlParams.get('indexName')
+      };
 
-    search.addWidgets([
-      instantsearch.widgets.searchBox({
-        container: 'search-bar',
-      }),
+      const searchClient = algoliasearch(searchOptions.appId, searchOptions.searchKey);
 
-      instantsearch.widgets.hits({
-        container: 'search-results',
-      })
-    ]);
+      const search = instantsearch({
+        indexName: searchOptions.indexName,
+        searchClient,
+      });
 
-    search.addWidgets([
-      {
-        render(options) {
-          const results = options.results;
-          const searchQuery = results._rawResults[0].params;
-          console.log(searchQuery);
-          document.querySelector('search-results').innerHTML = results.hits
-            .map(
-              hit => `
+      search.addWidgets([
+        instantsearch.widgets.searchBox({
+          container: 'search-bar',
+        }),
+
+        instantsearch.widgets.hits({
+          container: 'search-results',
+        })
+      ]);
+
+      search.addWidgets([
+        {
+          init(opts) {
+            const helper = opts.helper;
+            helper.setQuery(searchTerm.get('query')) // update the parameters
+              .search(); // launch the query
+          }
+        },
+        {
+          render(options) {
+            const results = options.results;
+            sdk.field.setValue(results._rawResults[0].params);
+
+            document.querySelector('search-results').innerHTML = results.hits
+              .map(
+                hit => `
                 <search-result>
                   <article-image>
                     <img src="//${hit.image.defaultHost}/i/${hit.image.endpoint}/${hit.image.name}?h=160" />
@@ -116,13 +131,18 @@
                   <p>${hit.description}</p>
                 </search-result>
               `
-            )
-            .join('');
-        },
-      }
-    ]);
+              )
+              .join('');
+          },
+        }
+      ]);
 
-    search.start();
+      search.start();
+
+      const searchBox = document.querySelector('.ais-SearchBox-input');
+      searchBox.value = searchTerm.get('query');
+
+    })()
   </script>
 </body>
 </html>
